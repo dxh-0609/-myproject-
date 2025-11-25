@@ -287,3 +287,87 @@ def resolve_alert(alert_id):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+# 在现有app.py中添加新的API端点
+
+# 添加性能分析API
+@app.route('/api/analytics/summary', methods=['GET'])
+def get_analytics_summary():
+    """获取性能分析摘要"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        # 获取最近1小时的数据进行分析
+        cursor.execute('''
+            SELECT host, AVG(cpu) as avg_cpu, AVG(memory) as avg_memory,
+                   MAX(cpu) as max_cpu, MAX(memory) as max_memory,
+                   COUNT(*) as data_points
+            FROM monitor_data 
+            WHERE timestamp > datetime('now', '-1 hour')
+            GROUP BY host
+        ''')
+        
+        analytics = []
+        for row in cursor.fetchall():
+            analytics.append({
+                'host': row['host'],
+                'avg_cpu': round(row['avg_cpu'], 2),
+                'avg_memory': round(row['avg_memory'], 2),
+                'max_cpu': round(row['max_cpu'], 2),
+                'max_memory': round(row['max_memory'], 2),
+                'data_points': row['data_points']
+            })
+        
+        return jsonify(analytics)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+# 添加趋势分析API
+@app.route('/api/analytics/trends', methods=['GET'])
+def get_trends():
+    """获取趋势数据"""
+    host = request.args.get('host')
+    days = int(request.args.get('days', 7))
+    
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        if host:
+            cursor.execute('''
+                SELECT 
+                    DATE(timestamp) as date,
+                    AVG(cpu) as avg_cpu,
+                    AVG(memory) as avg_memory
+                FROM monitor_data 
+                WHERE host = ? AND timestamp > datetime('now', ?)
+                GROUP BY DATE(timestamp)
+                ORDER BY date
+            ''', (host, f'-{days} days'))
+        else:
+            cursor.execute('''
+                SELECT 
+                    DATE(timestamp) as date,
+                    AVG(cpu) as avg_cpu,
+                    AVG(memory) as avg_memory
+                FROM monitor_data 
+                WHERE timestamp > datetime('now', ?)
+                GROUP BY DATE(timestamp)
+                ORDER BY date
+            ''', (f'-{days} days',))
+        
+        trends = []
+        for row in cursor.fetchall():
+            trends.append({
+                'date': row['date'],
+                'avg_cpu': round(row['avg_cpu'], 2),
+                'avg_memory': round(row['avg_memory'], 2)
+            })
+        
+        return jsonify(trends)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
