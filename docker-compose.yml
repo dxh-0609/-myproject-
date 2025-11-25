@@ -1,0 +1,26 @@
+services:
+  # Web服务 (后端+前端页面)
+  web:
+    build: .
+    container_name: monitor_web
+    ports:
+      - "5000:5000"
+    networks:
+      - monitor_net
+
+  # 采集代理 (数据采集)
+  agent:
+    build: .
+    container_name: monitor_agent
+    # 覆盖默认启动命令，运行 agent.py
+    command: python agent.py
+    environment:
+      - SERVER_URL=http://web:5000/api/report
+    depends_on:
+      - web
+    networks:
+      - monitor_net
+
+networks:
+  monitor_net:
+    driver: bridge

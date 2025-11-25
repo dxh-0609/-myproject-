@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>服务器资源监控系统</title>
+    <!-- 引入 ECharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f2f5; }
+        .container { width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; }
+        #main { width: 100%; height: 400px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Server Monitor Dashboard</h1>
+        <div id="main"></div>
+    </div>
+
+    <script>
+        // 初始化 ECharts
+        var chartDom = document.getElementById('main');
+        var myChart = echarts.init(chartDom);
+        var option;
+
+        option = {
+            title: { text: 'CPU & 内存使用率' },
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['CPU使用率', '内存使用率'] },
+            xAxis: { type: 'category', data: [] },
+            yAxis: { type: 'value', max: 100 },
+            series: [
+                { name: 'CPU使用率', type: 'line', data: [] },
+                { name: '内存使用率', type: 'line', data: [] }
+            ]
+        };
+        myChart.setOption(option);
+
+        // 定时获取数据函数
+        function fetchData() {
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => {
+                    // 提取数据用于绘图
+                    const times = data.map(item => item.time);
+                    const cpu_data = data.map(item => item.cpu);
+                    const mem_data = data.map(item => item.memory);
+
+                    // 更新图表
+                    myChart.setOption({
+                        xAxis: { data: times },
+                        series: [
+                            { data: cpu_data },
+                            { data: mem_data }
+                        ]
+                    });
+                });
+        }
+
+        // 每2秒刷新一次
+        setInterval(fetchData, 2000);
+    </script>
+</body>
+</html>
