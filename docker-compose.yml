@@ -5,6 +5,8 @@ services:
     container_name: monitor_web
     ports:
       - "5000:5000"
+    volumes:
+      - ./data:/app/data  # 挂载数据目录
     networks:
       - monitor_net
 
@@ -20,7 +22,7 @@ services:
     networks:
       - monitor_net
 
-  # 采集代理2 (主机2) - 添加第二个监控节点
+  # 采集代理2 (主机2)
   agent2:
     build: .
     container_name: monitor_agent2
