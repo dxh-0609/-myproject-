@@ -2,53 +2,142 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>服务器资源监控系统</title>
-    <!-- 引入 ECharts CDN -->
+    <title>多主机资源监控系统</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f2f5; }
-        .container { width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .container { width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         h1 { text-align: center; }
-        #main { width: 100%; height: 400px; }
+        .controls { margin: 20px 0; text-align: center; }
+        .host-select { padding: 8px; font-size: 16px; margin-right: 10px; }
+        .chart-container { display: flex; flex-wrap: wrap; gap: 20px; }
+        .chart { width: 100%; height: 400px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Server Monitor Dashboard</h1>
-        <div id="main"></div>
+        <h1>多主机监控面板</h1>
+        
+        <div class="controls">
+            <select id="hostSelect" class="host-select">
+                <option value="">选择主机...</option>
+            </select>
+            <button onclick="addChart()">添加监控图表</button>
+            <button onclick="clearCharts()">清空所有图表</button>
+        </div>
+        
+        <div id="chartContainer" class="chart-container"></div>
     </div>
 
     <script>
-        // 初始化 ECharts
-        var chartDom = document.getElementById('main');
-        var myChart = echarts.init(chartDom);
-        var option;
-
-        option = {
-            title: { text: 'CPU & 内存使用率' },
-            tooltip: { trigger: 'axis' },
-            legend: { data: ['CPU使用率', '内存使用率'] },
-            xAxis: { type: 'category', data: [] },
-            yAxis: { type: 'value', max: 100 },
-            series: [
-                { name: 'CPU使用率', type: 'line', data: [] },
-                { name: '内存使用率', type: 'line', data: [] }
-            ]
-        };
-        myChart.setOption(option);
-
-        // 定时获取数据函数
-        function fetchData() {
-            fetch('/api/data')
+        let hostCharts = new Map(); // 存储主机和对应的图表实例
+        let currentCharts = []; // 当前显示的图表
+        
+        // 初始化主机选择下拉框
+        function initHostSelect() {
+            fetch('/api/hosts')
+                .then(response => response.json())
+                .then(hosts => {
+                    const select = document.getElementById('hostSelect');
+                    // 清空现有选项（保留第一个）
+                    while (select.children.length > 1) {
+                        select.removeChild(select.lastChild);
+                    }
+                    // 添加主机选项
+                    hosts.forEach(host => {
+                        const option = document.createElement('option');
+                        option.value = host;
+                        option.textContent = host;
+                        select.appendChild(option);
+                    });
+                });
+        }
+        
+        // 添加监控图表
+        function addChart() {
+            const hostSelect = document.getElementById('hostSelect');
+            const selectedHost = hostSelect.value;
+            
+            if (!selectedHost) {
+                alert('请先选择主机');
+                return;
+            }
+            
+            // 检查是否已存在该主机的图表
+            if (hostCharts.has(selectedHost)) {
+                alert('该主机监控图表已存在');
+                return;
+            }
+            
+            // 创建图表容器
+            const chartId = 'chart-' + Date.now();
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'chart';
+            chartDiv.id = chartId;
+            document.getElementById('chartContainer').appendChild(chartDiv);
+            
+            // 初始化图表
+            const chart = echarts.init(chartDiv);
+            const option = {
+                title: { 
+                    text: `${selectedHost} - CPU & 内存使用率`,
+                    left: 'center'
+                },
+                tooltip: { trigger: 'axis' },
+                legend: { 
+                    data: ['CPU使用率', '内存使用率'],
+                    top: 30
+                },
+                xAxis: { 
+                    type: 'category', 
+                    data: [],
+                    name: '时间'
+                },
+                yAxis: { 
+                    type: 'value', 
+                    max: 100,
+                    name: '使用率(%)'
+                },
+                series: [
+                    { 
+                        name: 'CPU使用率', 
+                        type: 'line', 
+                        data: [],
+                        smooth: true,
+                        lineStyle: { width: 3 }
+                    },
+                    { 
+                        name: '内存使用率', 
+                        type: 'line', 
+                        data: [],
+                        smooth: true,
+                        lineStyle: { width: 3 }
+                    }
+                ]
+            };
+            chart.setOption(option);
+            
+            // 存储图表实例
+            hostCharts.set(selectedHost, { chart, chartId });
+            currentCharts.push({ host: selectedHost, chart, chartId });
+            
+            // 更新图表数据
+            updateChartData(selectedHost);
+        }
+        
+        // 更新指定主机的图表数据
+        function updateChartData(host) {
+            if (!hostCharts.has(host)) return;
+            
+            fetch(`/api/data?host=${host}`)
                 .then(response => response.json())
                 .then(data => {
-                    // 提取数据用于绘图
                     const times = data.map(item => item.time);
                     const cpu_data = data.map(item => item.cpu);
                     const mem_data = data.map(item => item.memory);
-
-                    // 更新图表
-                    myChart.setOption({
+                    
+                    const { chart } = hostCharts.get(host);
+                    chart.setOption({
                         xAxis: { data: times },
                         series: [
                             { data: cpu_data },
@@ -57,9 +146,33 @@
                     });
                 });
         }
-
-        // 每2秒刷新一次
-        setInterval(fetchData, 2000);
+        
+        // 清空所有图表
+        function clearCharts() {
+            currentCharts.forEach(({ chartId }) => {
+                const element = document.getElementById(chartId);
+                if (element) {
+                    element.remove();
+                }
+            });
+            hostCharts.clear();
+            currentCharts = [];
+        }
+        
+        // 定时更新所有图表
+        function updateAllCharts() {
+            currentCharts.forEach(({ host }) => {
+                updateChartData(host);
+            });
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initHostSelect();
+            // 每2秒更新一次主机列表和图表数据
+            setInterval(initHostSelect, 5000);
+            setInterval(updateAllCharts, 2000);
+        });
     </script>
 </body>
 </html>
