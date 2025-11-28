@@ -1,0 +1,15 @@
+准备工作
+Mkdir myproject
+
+mkdir templates
+ touch app.py requirements.txt Dockerfile agent.py docker-compose.yml
+1. Member A：后端开发 (Backend) & 数据库
+任务： 搭建 Web 服务器，接收 POST 请求存储数据，提供 GET 请求展示数据。
+文件： app.py, requirements.txt, Dockerfile
+2. Member B：前端开发 (Frontend)
+任务： 设计界面，使用 Ajax 轮询后端接口，用 ECharts 绘图。
+文件： templates/index.html
+代码: templates/index.html
+3. Member C：运维自动化 & 测试 (O&M)
+任务： 编写数据采集脚本（Shell/Python），编写 Docker Compose 文件进行编排，进行集成测试。
+文件： agent.py, docker-compose.yml
