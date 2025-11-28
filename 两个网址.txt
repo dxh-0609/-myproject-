@@ -1,0 +1,7 @@
+github：
+https://github.com/dxh-0609/-myproject-
+项目web网站：
+Windows(外网)：
+http://192.168.44.130:5000
+Linus（内网；虚拟机内部)：
+http://localhost:5000
